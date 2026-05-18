@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>干饭机器</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script defer src="./app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Meal Draw</p>
+          <h1>干饭机器</h1>
+        </div>
+        <div class="top-actions" aria-label="主要操作">
+          <button class="icon-button" id="drawSelectedBtn" type="button" title="抽取已选日期">
+            <i data-lucide="sparkles"></i>
+            <span>抽取已选</span>
+          </button>
+          <button class="icon-button subtle" id="clearPlanBtn" type="button" title="清空餐表">
+            <i data-lucide="trash-2"></i>
+          </button>
+        </div>
+      </header>
+
+      <section class="control-strip" aria-label="抽取日期">
+        <div class="day-picker" id="drawDayPicker"></div>
+        <div class="quick-actions" aria-label="日期快捷设置">
+          <button class="text-button ghost" id="selectAllDaysBtn" type="button">全选</button>
+          <button class="text-button ghost" id="selectWorkdaysBtn" type="button">工作日</button>
+          <label class="field add-day-field">
+            <span>添加日期</span>
+            <select id="addDaySelect"></select>
+          </label>
+        </div>
+      </section>
+
+      <section class="layout">
+        <section class="planner-panel" aria-labelledby="plannerTitle">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">This Week</p>
+              <h2 id="plannerTitle">本周早中晚</h2>
+            </div>
+            <div class="legend">
+              <span><b class="dot breakfast"></b>早</span>
+              <span><b class="dot lunch"></b>中</span>
+              <span><b class="dot dinner"></b>晚</span>
+            </div>
+          </div>
+          <div class="week-grid" id="weekGrid" aria-live="polite"></div>
+        </section>
+
+        <aside class="side-panel" aria-label="候选池">
+          <section class="tool-block">
+            <div class="section-head tight">
+              <div>
+                <p class="eyebrow">Meal Pool</p>
+                <h2>候选池</h2>
+              </div>
+              <div class="pool-actions">
+                <button class="icon-button subtle" id="exportMealsBtn" type="button" title="导出候选池">
+                  <i data-lucide="download"></i>
+                </button>
+                <button class="icon-button subtle" id="importMealsBtn" type="button" title="导入候选池">
+                  <i data-lucide="upload"></i>
+                </button>
+                <input id="importMealsInput" type="file" accept="application/json,.json" hidden />
+              </div>
+            </div>
+
+            <form class="meal-form" id="mealForm">
+              <input id="mealIdInput" type="hidden" />
+              <div class="add-row">
+                <input id="mealNameInput" type="text" placeholder="比如：番茄牛腩饭" autocomplete="off" />
+                <input id="mealColorInput" type="color" value="#2f8e7d" title="卡片颜色" />
+              </div>
+              <div class="slot-picker" aria-label="候选适用餐段">
+                <label class="toggle compact">
+                  <input name="mealSlot" value="breakfast" type="checkbox" />
+                  <span>早</span>
+                </label>
+                <label class="toggle compact">
+                  <input name="mealSlot" value="lunch" type="checkbox" checked />
+                  <span>中</span>
+                </label>
+                <label class="toggle compact">
+                  <input name="mealSlot" value="dinner" type="checkbox" checked />
+                  <span>晚</span>
+                </label>
+              </div>
+              <div class="inline-actions">
+                <button class="text-button" id="saveMealBtn" type="submit">
+                  <i data-lucide="plus"></i>
+                  添加候选
+                </button>
+                <button class="text-button ghost" id="cancelEditBtn" type="button" hidden>取消编辑</button>
+              </div>
+            </form>
+
+            <div class="meal-pool" id="mealPool"></div>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>
