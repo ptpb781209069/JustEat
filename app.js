@@ -1,5 +1,6 @@
-const STORAGE_KEY = "ganfan-machine-state-v2";
-const LEGACY_STORAGE_KEY = "ganfan-machine-state-v1";
+const STORAGE_KEY = "ganfan-machine-state-v3";
+const LEGACY_KEYS = ["ganfan-machine-state-v2", "ganfan-machine-state-v1"];
+const DEFAULT_TAG_NAME = "普通干饭";
 
 const mealSlots = [
   { id: "breakfast", label: "早上", short: "早", color: "breakfast" },
@@ -8,7 +9,18 @@ const mealSlots = [
 ];
 
 const dayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
-const defaultColors = ["#2f8e7d", "#e78a3c", "#596bb3", "#bc5a6f", "#6f8f3d", "#8f68b8"];
+const defaultColors = [
+  "#2f8e7d",
+  "#e78a3c",
+  "#596bb3",
+  "#bc5a6f",
+  "#6f8f3d",
+  "#8f68b8",
+  "#008a60",
+  "#c65f32",
+  "#327aa6",
+  "#8b6a36",
+];
 
 let state = loadState();
 
@@ -20,14 +32,20 @@ const mealForm = document.querySelector("#mealForm");
 const mealIdInput = document.querySelector("#mealIdInput");
 const mealNameInput = document.querySelector("#mealNameInput");
 const mealColorInput = document.querySelector("#mealColorInput");
+const mealTagsInput = document.querySelector("#mealTagsInput");
 const saveMealBtn = document.querySelector("#saveMealBtn");
 const cancelEditBtn = document.querySelector("#cancelEditBtn");
 const importMealsInput = document.querySelector("#importMealsInput");
+const importPlanInput = document.querySelector("#importPlanInput");
+const tagList = document.querySelector("#tagList");
+const tagNameInput = document.querySelector("#tagNameInput");
+const tagLimitInput = document.querySelector("#tagLimitInput");
 
 function loadState() {
   const fallback = {
     meals: [],
     plan: {},
+    tags: [{ name: DEFAULT_TAG_NAME, limit: null }],
     drawDays: [0, 1, 2, 3, 4, 5, 6],
     visibleDays: [0, 1, 2, 3, 4, 5, 6],
   };
@@ -36,14 +54,9 @@ function loadState() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (saved) return normalizeState({ ...fallback, ...saved });
 
-    const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY));
-    const legacyCustomMeals = (legacy?.meals || []).filter((item) => !/^m\d+$/.test(item.id || ""));
-    if (legacyCustomMeals.length) {
-      return normalizeState({
-        ...fallback,
-        meals: legacyCustomMeals.map((item, index) => legacyMealToMeal(item, index)),
-        plan: migrateLegacyPlan(legacy.plan || {}, legacyCustomMeals),
-      });
+    for (const key of LEGACY_KEYS) {
+      const legacy = JSON.parse(localStorage.getItem(key));
+      if (legacy) return normalizeState({ ...fallback, ...legacy });
     }
   } catch {
     return fallback;
@@ -53,12 +66,16 @@ function loadState() {
 }
 
 function normalizeState(nextState) {
-  return {
+  const normalized = {
     meals: Array.isArray(nextState.meals) ? nextState.meals.map(normalizeMeal).filter(Boolean) : [],
-    plan: nextState.plan && typeof nextState.plan === "object" ? nextState.plan : {},
+    plan: nextState.plan && typeof nextState.plan === "object" ? normalizePlan(nextState.plan) : {},
+    tags: Array.isArray(nextState.tags) ? nextState.tags.map(normalizeTag).filter(Boolean) : [],
     drawDays: normalizeDayList(nextState.drawDays, [0, 1, 2, 3, 4, 5, 6]),
     visibleDays: normalizeDayList(nextState.visibleDays, [0, 1, 2, 3, 4, 5, 6]),
   };
+
+  ensureKnownTags(normalized);
+  return normalized;
 }
 
 function normalizeDayList(value, fallback) {
@@ -80,38 +97,73 @@ function normalizeMeal(item) {
     name: String(item.name).trim().slice(0, 32),
     slots: [...new Set(slots.filter((slot) => mealSlots.some((mealSlot) => mealSlot.id === slot)))],
     color: isColor(item.color) ? item.color : colorFromText(item.name),
+    tags: normalizeTagNames(item.tags || item.tag || DEFAULT_TAG_NAME),
   };
 }
 
-function legacyMealToMeal(item, index) {
-  return normalizeMeal({
-    id: item.id || makeId("legacy"),
-    name: item.name,
-    type: item.type,
-    color: defaultColors[index % defaultColors.length],
-  });
-}
-
-function migrateLegacyPlan(plan, legacyMeals) {
-  const mealsByName = new Map((legacyMeals || []).map((item, index) => [item.name, legacyMealToMeal(item, index)]));
+function normalizePlan(plan) {
   return Object.fromEntries(
-    Object.entries(plan).map(([key, entry]) => {
-      const meal = mealsByName.get(entry?.name);
-      return [
-        key,
-        {
-          mealId: meal?.id || "",
-          name: entry?.name || "",
-          color: meal?.color || colorFromText(entry?.name || ""),
-          locked: Boolean(entry?.locked),
-          source: entry?.source || "draw",
-        },
-      ];
-    }),
+    Object.entries(plan).map(([key, entry]) => [
+      key,
+      {
+        mealId: entry?.mealId || "",
+        name: String(entry?.name || ""),
+        color: isColor(entry?.color) ? entry.color : colorFromText(entry?.name || ""),
+        tags: normalizeTagNames(entry?.tags || DEFAULT_TAG_NAME),
+        locked: Boolean(entry?.locked),
+        source: entry?.source || "draw",
+      },
+    ]),
   );
 }
 
+function normalizeTag(item) {
+  const name = cleanTagName(typeof item === "string" ? item : item?.name);
+  if (!name) return null;
+  const rawLimit = typeof item === "object" ? item.limit : null;
+  const limit = rawLimit === "" || rawLimit === null || rawLimit === undefined ? null : Math.max(0, Number.parseInt(rawLimit, 10));
+  return {
+    name,
+    limit: Number.isFinite(limit) ? limit : null,
+  };
+}
+
+function normalizeTagNames(value) {
+  const source = Array.isArray(value) ? value : String(value || "").split(/[,，、/]/);
+  const tags = source.map(cleanTagName).filter(Boolean);
+  return [...new Set(tags.length ? tags : [DEFAULT_TAG_NAME])];
+}
+
+function cleanTagName(value) {
+  return String(value || "").trim().slice(0, 16);
+}
+
+function ensureKnownTags(targetState = state) {
+  const tagMap = new Map();
+  tagMap.set(DEFAULT_TAG_NAME, { name: DEFAULT_TAG_NAME, limit: null });
+
+  (targetState.tags || []).forEach((tag) => {
+    const normalized = normalizeTag(tag);
+    if (normalized) tagMap.set(normalized.name, normalized);
+  });
+
+  (targetState.meals || []).forEach((meal) => {
+    meal.tags.forEach((name) => {
+      if (!tagMap.has(name)) tagMap.set(name, { name, limit: null });
+    });
+  });
+
+  Object.values(targetState.plan || {}).forEach((entry) => {
+    (entry?.tags || []).forEach((name) => {
+      if (!tagMap.has(name)) tagMap.set(name, { name, limit: null });
+    });
+  });
+
+  targetState.tags = [...tagMap.values()];
+}
+
 function saveState() {
+  ensureKnownTags();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -146,59 +198,115 @@ function slotKey(dayKey, slotId) {
   return `${dayKey}:${slotId}`;
 }
 
-function chooseMeal(slotId, usedIds) {
-  const candidates = state.meals.filter((item) => item.slots.includes(slotId));
-  const fresh = candidates.filter((item) => !usedIds.has(item.id));
-  const pool = fresh.length ? fresh : candidates;
-  const picked = pool[Math.floor(Math.random() * pool.length)];
-
-  if (!picked) {
-    return {
-      mealId: "",
-      name: "暂无候选",
-      color: "#d7ddd8",
-      source: "empty",
-    };
-  }
-
-  usedIds.add(picked.id);
+function getPlanEntry(entry) {
+  if (!entry) return null;
+  const meal = state.meals.find((item) => item.id === entry.mealId);
+  if (!meal) return entry;
   return {
-    mealId: picked.id,
-    name: picked.name,
-    color: picked.color,
-    source: "draw",
+    ...entry,
+    name: meal.name,
+    color: meal.color,
+    tags: meal.tags,
   };
 }
 
 function drawSelectedDays() {
   const days = getWeekDays();
   const selectedDays = state.visibleDays.filter((dayIndex) => state.drawDays.includes(dayIndex));
-  const usedIds = new Set(
-    Object.values(state.plan)
-      .map((entry) => entry?.mealId)
-      .filter(Boolean),
-  );
+  const redrawKeys = new Set();
 
   selectedDays.forEach((dayIndex) => {
     const day = days[dayIndex];
     mealSlots.forEach((slot) => {
       const key = slotKey(day.key, slot.id);
-      if (state.plan[key]?.locked) return;
-      state.plan[key] = chooseMeal(slot.id, usedIds);
+      if (!state.plan[key]?.locked) redrawKeys.add(key);
     });
+  });
+
+  const usedIds = new Set();
+  const tagCounts = new Map();
+  Object.entries(state.plan).forEach(([key, rawEntry]) => {
+    if (redrawKeys.has(key)) return;
+    const entry = getPlanEntry(rawEntry);
+    if (!entry || entry.source === "empty") return;
+    if (entry.mealId) usedIds.add(entry.mealId);
+    addTagsToCount(entry.tags, tagCounts);
+  });
+
+  redrawKeys.forEach((key) => {
+    const slotId = key.split(":").at(-1);
+    state.plan[key] = chooseMeal(slotId, usedIds, tagCounts);
   });
 
   saveState();
   render();
 }
 
+function chooseMeal(slotId, usedIds, tagCounts) {
+  const candidates = state.meals.filter((item) => item.slots.includes(slotId));
+  let pool = candidates.filter((item) => !usedIds.has(item.id) && canUseTags(item.tags, tagCounts));
+  if (!pool.length) pool = candidates.filter((item) => canUseTags(item.tags, tagCounts));
+
+  const picked = pool[Math.floor(Math.random() * pool.length)];
+  if (!picked) {
+    return {
+      mealId: "",
+      name: candidates.length ? "标签次数已满" : "暂无候选",
+      color: "#d7ddd8",
+      tags: [],
+      source: "empty",
+    };
+  }
+
+  usedIds.add(picked.id);
+  addTagsToCount(picked.tags, tagCounts);
+  return {
+    mealId: picked.id,
+    name: picked.name,
+    color: picked.color,
+    tags: picked.tags,
+    source: "draw",
+  };
+}
+
+function addTagsToCount(tags, tagCounts) {
+  normalizeTagNames(tags).forEach((tag) => {
+    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+  });
+}
+
+function canUseTags(tags, tagCounts) {
+  return normalizeTagNames(tags).every((tagName) => {
+    const setting = state.tags.find((tag) => tag.name === tagName);
+    if (!setting || setting.limit === null) return true;
+    return (tagCounts.get(tagName) || 0) < setting.limit;
+  });
+}
+
+function currentTagCounts() {
+  const counts = new Map();
+  Object.values(state.plan).forEach((rawEntry) => {
+    const entry = getPlanEntry(rawEntry);
+    if (!entry || entry.source === "empty") return;
+    addTagsToCount(entry.tags, counts);
+  });
+  return counts;
+}
+
 function rerollSlot(dayKey, slotId) {
-  const usedIds = new Set(
-    Object.values(state.plan)
-      .map((entry) => entry?.mealId)
-      .filter(Boolean),
-  );
-  state.plan[slotKey(dayKey, slotId)] = chooseMeal(slotId, usedIds);
+  const keyToReplace = slotKey(dayKey, slotId);
+  const usedIds = new Set();
+  const tagCounts = new Map();
+
+  Object.entries(state.plan).forEach(([key, rawEntry]) => {
+    if (key === keyToReplace) return;
+    const entry = getPlanEntry(rawEntry);
+    if (!entry || entry.source === "empty") return;
+    if (entry.mealId) usedIds.add(entry.mealId);
+    addTagsToCount(entry.tags, tagCounts);
+  });
+
+  state.plan[keyToReplace] = chooseMeal(slotId, usedIds, tagCounts);
   saveState();
   render();
 }
@@ -242,9 +350,11 @@ function setDrawDay(dayIndex, checked) {
 }
 
 function render() {
+  ensureKnownTags();
   renderDayPicker();
   renderWeek();
   renderMeals();
+  renderTags();
   renderAddDaySelect();
   if (window.lucide) window.lucide.createIcons();
 }
@@ -276,6 +386,7 @@ function renderAddDaySelect() {
 
 function renderWeek() {
   const days = getWeekDays();
+  weekGrid.style.setProperty("--visible-days", state.visibleDays.length);
   weekGrid.innerHTML = state.visibleDays
     .map((dayIndex) => {
       const day = days[dayIndex];
@@ -300,7 +411,7 @@ function renderWeek() {
               <p class="meal-name">${escapeHtml(entry?.name || "待抽取")}</p>
               <div class="meal-color-row">
                 <span class="color-swatch" style="background:${escapeAttr(color)}"></span>
-                <span>${isEmpty ? "没有适用候选" : "来自候选池"}</span>
+                <span>${isEmpty ? escapeHtml(entry?.name || "没有抽取结果") : escapeHtml((entry.tags || []).join(" / "))}</span>
               </div>
             </article>
           `;
@@ -325,17 +436,6 @@ function renderWeek() {
     .join("");
 }
 
-function getPlanEntry(entry) {
-  if (!entry) return null;
-  const meal = state.meals.find((item) => item.id === entry.mealId);
-  if (!meal) return entry;
-  return {
-    ...entry,
-    name: meal.name,
-    color: meal.color,
-  };
-}
-
 function renderMeals() {
   if (!state.meals.length) {
     mealPool.innerHTML = `<p class="empty-state">候选池为空。添加几道饭，或导入之前导出的 JSON。</p>`;
@@ -350,8 +450,14 @@ function renderMeals() {
           <div>
             <strong>${escapeHtml(item.name)}</strong>
             <span>${item.slots.map(typeLabel).join(" / ")}</span>
+            <div class="chip-tags">
+              ${item.tags.map((tag) => `<span class="tag-pill">${escapeHtml(tag)}</span>`).join("")}
+            </div>
           </div>
           <div class="chip-actions">
+            <button class="delete-button copy-meal" type="button" data-id="${item.id}" title="复制候选" aria-label="复制${escapeHtml(item.name)}">
+              <i data-lucide="copy"></i>
+            </button>
             <button class="delete-button edit-meal" type="button" data-id="${item.id}" title="编辑候选" aria-label="编辑${escapeHtml(item.name)}">
               <i data-lucide="pencil"></i>
             </button>
@@ -362,6 +468,28 @@ function renderMeals() {
         </div>
       `,
     )
+    .join("");
+}
+
+function renderTags() {
+  const counts = currentTagCounts();
+  tagList.innerHTML = state.tags
+    .map((tag) => {
+      const count = counts.get(tag.name) || 0;
+      const limitText = tag.limit === null ? "不限" : `最多 ${tag.limit} 次`;
+      return `
+        <div class="tag-item">
+          <div>
+            <strong>${escapeHtml(tag.name)}</strong>
+            <small>当前结果 ${count} 次 · ${limitText}</small>
+          </div>
+          <input class="tag-limit-input" data-name="${escapeAttr(tag.name)}" type="number" min="0" inputmode="numeric" value="${tag.limit ?? ""}" placeholder="不限" title="最多出现次数" />
+          <button class="delete-button delete-tag" type="button" data-name="${escapeAttr(tag.name)}" title="删除标签" aria-label="删除${escapeHtml(tag.name)}" ${tag.name === DEFAULT_TAG_NAME ? "disabled" : ""}>
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+      `;
+    })
     .join("");
 }
 
@@ -380,6 +508,7 @@ function saveMeal(event) {
   const name = mealNameInput.value.trim().slice(0, 32);
   const slots = [...mealForm.querySelectorAll('input[name="mealSlot"]:checked')].map((input) => input.value);
   const color = mealColorInput.value;
+  const tags = normalizeTagNames(mealTagsInput.value);
 
   if (!name) {
     mealNameInput.focus();
@@ -393,9 +522,9 @@ function saveMeal(event) {
 
   const mealId = mealIdInput.value;
   if (mealId) {
-    state.meals = state.meals.map((item) => (item.id === mealId ? { ...item, name, slots, color } : item));
+    state.meals = state.meals.map((item) => (item.id === mealId ? { ...item, name, slots, color, tags } : item));
   } else {
-    state.meals.unshift({ id: makeId("meal"), name, slots, color });
+    state.meals.unshift({ id: makeId("meal"), name, slots, color, tags });
   }
 
   resetMealForm();
@@ -410,6 +539,7 @@ function editMeal(id) {
   mealIdInput.value = meal.id;
   mealNameInput.value = meal.name;
   mealColorInput.value = meal.color;
+  mealTagsInput.value = meal.tags.join(", ");
   mealForm.querySelectorAll('input[name="mealSlot"]').forEach((input) => {
     input.checked = meal.slots.includes(input.value);
   });
@@ -422,12 +552,29 @@ function editMeal(id) {
 function resetMealForm() {
   mealIdInput.value = "";
   mealNameInput.value = "";
+  mealTagsInput.value = DEFAULT_TAG_NAME;
   mealColorInput.value = defaultColors[state.meals.length % defaultColors.length];
   mealForm.querySelectorAll('input[name="mealSlot"]').forEach((input) => {
     input.checked = input.value !== "breakfast";
   });
   saveMealBtn.innerHTML = `<i data-lucide="plus"></i>添加候选`;
   cancelEditBtn.hidden = true;
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function copyMeal(id) {
+  const meal = state.meals.find((item) => item.id === id);
+  if (!meal) return;
+  const copy = {
+    ...meal,
+    id: makeId("meal"),
+    tags: [...meal.tags],
+    slots: [...meal.slots],
+  };
+  const index = state.meals.findIndex((item) => item.id === id);
+  state.meals.splice(index + 1, 0, copy);
+  saveState();
+  render();
 }
 
 function deleteMeal(id) {
@@ -439,19 +586,77 @@ function deleteMeal(id) {
   render();
 }
 
+function addTag() {
+  const name = cleanTagName(tagNameInput.value);
+  if (!name) {
+    tagNameInput.focus();
+    return;
+  }
+
+  const limit = parseLimit(tagLimitInput.value);
+  const existing = state.tags.find((tag) => tag.name === name);
+  if (existing) {
+    existing.limit = limit;
+  } else {
+    state.tags.push({ name, limit });
+  }
+
+  tagNameInput.value = "";
+  tagLimitInput.value = "";
+  saveState();
+  render();
+}
+
+function updateTagLimit(name, value) {
+  const tag = state.tags.find((item) => item.name === name);
+  if (!tag) return;
+  tag.limit = parseLimit(value);
+  saveState();
+  renderTags();
+}
+
+function deleteTag(name) {
+  if (name === DEFAULT_TAG_NAME) return;
+  state.tags = state.tags.filter((tag) => tag.name !== name);
+  state.meals = state.meals.map((meal) => {
+    const tags = meal.tags.filter((tag) => tag !== name);
+    return { ...meal, tags: tags.length ? tags : [DEFAULT_TAG_NAME] };
+  });
+  Object.values(state.plan).forEach((entry) => {
+    entry.tags = normalizeTagNames((entry.tags || []).filter((tag) => tag !== name));
+  });
+  saveState();
+  render();
+}
+
+function parseLimit(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const limit = Number.parseInt(value, 10);
+  return Number.isFinite(limit) ? Math.max(0, limit) : null;
+}
+
+function autoAssignColors() {
+  const colorByName = new Map();
+  state.meals = state.meals.map((meal) => {
+    if (!colorByName.has(meal.name)) colorByName.set(meal.name, colorFromText(meal.name));
+    return { ...meal, color: colorByName.get(meal.name) };
+  });
+  Object.keys(state.plan).forEach((key) => {
+    const entry = getPlanEntry(state.plan[key]);
+    state.plan[key].color = entry?.color || state.plan[key].color;
+  });
+  saveState();
+  render();
+}
+
 function exportMeals() {
   const payload = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
+    tags: state.tags,
     meals: state.meals,
   };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `ganfan-meal-pool-${formatDateKey(new Date())}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadText(`ganfan-meal-pool-${formatDateKey(new Date())}.json`, JSON.stringify(payload, null, 2), "application/json");
 }
 
 function importMeals(file) {
@@ -464,6 +669,7 @@ function importMeals(file) {
       const meals = imported.map(normalizeMeal).filter(Boolean);
       if (!meals.length) throw new Error("empty");
       state.meals = meals;
+      state.tags = Array.isArray(payload.tags) ? payload.tags.map(normalizeTag).filter(Boolean) : state.tags;
       resetMealForm();
       saveState();
       render();
@@ -476,14 +682,282 @@ function importMeals(file) {
   reader.readAsText(file);
 }
 
+function exportPlanJson() {
+  const payload = {
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    tags: state.tags,
+    meals: state.meals,
+    plan: readablePlanRows(),
+  };
+  downloadText(`ganfan-plan-${formatDateKey(new Date())}.json`, JSON.stringify(payload, null, 2), "application/json");
+}
+
+function exportPlanCsv() {
+  const rows = readablePlanRows();
+  const header = ["日期", "星期", "餐段", "名称", "标签", "颜色", "来源", "锁定"];
+  const csv = [header, ...rows.map((row) => [row.date, row.day, row.slot, row.name, row.tags.join("|"), row.color, row.source, row.locked ? "是" : "否"])]
+    .map((row) => row.map(csvCell).join(","))
+    .join("\r\n");
+  downloadText(`ganfan-plan-${formatDateKey(new Date())}.csv`, `\ufeff${csv}`, "text/csv;charset=utf-8");
+}
+
+function readablePlanRows() {
+  const days = getWeekDays();
+  const rows = [];
+  state.visibleDays.forEach((dayIndex) => {
+    const day = days[dayIndex];
+    mealSlots.forEach((slot) => {
+      const entry = getPlanEntry(state.plan[slotKey(day.key, slot.id)]);
+      if (!entry || entry.source === "empty") return;
+      rows.push({
+        date: day.key,
+        day: day.name,
+        slot: slot.label,
+        slotId: slot.id,
+        name: entry.name,
+        tags: normalizeTagNames(entry.tags),
+        color: entry.color,
+        source: entry.source || "draw",
+        locked: Boolean(entry.locked),
+      });
+    });
+  });
+  return rows;
+}
+
+function exportPlanImage() {
+  const rows = readablePlanRows();
+  const days = getWeekDays().filter((day) => state.visibleDays.includes(day.index));
+  const scale = 2;
+  const cellWidth = 210;
+  const headerHeight = 64;
+  const slotHeight = 92;
+  const width = Math.max(760, days.length * cellWidth + 48);
+  const height = headerHeight + 42 + mealSlots.length * slotHeight + 36;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = "#fffdfa";
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "#1d2523";
+  ctx.font = "700 28px Microsoft YaHei, sans-serif";
+  ctx.fillText("干饭机器本周结果", 24, 40);
+  ctx.font = "14px Microsoft YaHei, sans-serif";
+  ctx.fillStyle = "#65706c";
+  ctx.fillText(`导出时间 ${new Date().toLocaleString("zh-CN")}`, 260, 39);
+
+  days.forEach((day, dayOffset) => {
+    const x = 24 + dayOffset * cellWidth;
+    ctx.fillStyle = "#eef6f1";
+    roundRect(ctx, x, headerHeight, cellWidth - 8, 34, 8);
+    ctx.fill();
+    ctx.fillStyle = "#1d2523";
+    ctx.font = "700 15px Microsoft YaHei, sans-serif";
+    ctx.fillText(`${day.name} ${day.label}`, x + 12, headerHeight + 22);
+
+    mealSlots.forEach((slot, slotIndex) => {
+      const y = headerHeight + 42 + slotIndex * slotHeight;
+      const entry = rows.find((row) => row.date === day.key && row.slotId === slot.id);
+      ctx.fillStyle = "#ffffff";
+      roundRect(ctx, x, y, cellWidth - 8, slotHeight - 8, 8);
+      ctx.fill();
+      ctx.strokeStyle = "#d8ddd7";
+      ctx.stroke();
+
+      ctx.fillStyle = entry?.color || "#d7ddd8";
+      roundRect(ctx, x, y, 7, slotHeight - 8, 8);
+      ctx.fill();
+      ctx.fillStyle = "#65706c";
+      ctx.font = "700 13px Microsoft YaHei, sans-serif";
+      ctx.fillText(slot.label, x + 16, y + 24);
+      ctx.fillStyle = "#1d2523";
+      ctx.font = "700 16px Microsoft YaHei, sans-serif";
+      wrapCanvasText(ctx, entry?.name || "待抽取", x + 16, y + 50, cellWidth - 40, 20, 2);
+    });
+  });
+
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    downloadBlob(`ganfan-plan-${formatDateKey(new Date())}.png`, blob);
+  }, "image/png");
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+}
+
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight, maxLines) {
+  const chars = [...String(text)];
+  let line = "";
+  let lines = 0;
+  chars.forEach((char, index) => {
+    const test = line + char;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, y + lines * lineHeight);
+      lines += 1;
+      line = char;
+    } else {
+      line = test;
+    }
+    if (index === chars.length - 1 && lines < maxLines) ctx.fillText(line, x, y + lines * lineHeight);
+  });
+}
+
+function importPlan(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    try {
+      const text = String(reader.result || "");
+      const rows = file.name.toLowerCase().endsWith(".json") ? parsePlanJson(text) : parsePlanCsv(text);
+      if (!rows.length) throw new Error("empty");
+      applyImportedPlanRows(rows);
+      saveState();
+      render();
+    } catch {
+      window.alert("导入失败，请使用干饭机器导出的 JSON/CSV，或包含“日期、星期、餐段、名称”的表格。");
+    } finally {
+      importPlanInput.value = "";
+    }
+  });
+  reader.readAsText(file);
+}
+
+function parsePlanJson(text) {
+  const payload = JSON.parse(text);
+  return Array.isArray(payload) ? payload : payload.plan || [];
+}
+
+function parsePlanCsv(text) {
+  const lines = text.replace(/^\ufeff/, "").split(/\r?\n/).filter(Boolean).map(parseCsvLine);
+  if (lines.length < 2) return [];
+  const headers = lines[0];
+  return lines.slice(1).map((cells) => Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""])));
+}
+
+function parseCsvLine(line) {
+  const cells = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (char === '"' && line[index + 1] === '"') {
+      cell += '"';
+      index += 1;
+    } else if (char === '"') {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      cells.push(cell);
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  cells.push(cell);
+  return cells;
+}
+
+function applyImportedPlanRows(rows) {
+  const days = getWeekDays();
+  rows.forEach((row) => {
+    const name = String(row.name || row["名称"] || "").trim();
+    if (!name) return;
+
+    const slotId = normalizeSlotId(row.slotId || row["餐段"] || row.slot);
+    if (!slotId) return;
+
+    const dayIndex = normalizeDayIndex(row.date || row["日期"], row.day || row["星期"]);
+    if (dayIndex === null) return;
+
+    const tags = normalizeTagNames(row.tags || row["标签"] || DEFAULT_TAG_NAME);
+    const color = isColor(row.color || row["颜色"]) ? row.color || row["颜色"] : colorFromText(name);
+    let meal = state.meals.find((item) => item.name === name && item.slots.includes(slotId));
+    if (!meal) {
+      meal = { id: makeId("meal"), name: name.slice(0, 32), slots: [slotId], color, tags };
+      state.meals.unshift(meal);
+    }
+
+    const day = days[dayIndex];
+    if (!state.visibleDays.includes(dayIndex)) state.visibleDays = normalizeDayList([...state.visibleDays, dayIndex], state.visibleDays);
+    state.plan[slotKey(day.key, slotId)] = {
+      mealId: meal.id,
+      name: meal.name,
+      color: meal.color,
+      tags: meal.tags,
+      locked: String(row.locked || row["锁定"] || "").includes("是") || Boolean(row.locked === true),
+      source: "import",
+    };
+  });
+}
+
+function normalizeSlotId(value) {
+  const text = String(value || "");
+  if (mealSlots.some((slot) => slot.id === text)) return text;
+  if (/早/.test(text)) return "breakfast";
+  if (/中|午/.test(text)) return "lunch";
+  if (/晚|夜/.test(text)) return "dinner";
+  return "";
+}
+
+function normalizeDayIndex(dateValue, dayValue) {
+  const days = getWeekDays();
+  const dateText = String(dateValue || "");
+  const byDate = days.find((day) => day.key === dateText || day.label === dateText);
+  if (byDate) return byDate.index;
+  const dayText = String(dayValue || dateValue || "");
+  const byName = dayNames.findIndex((name) => dayText.includes(name));
+  return byName >= 0 ? byName : null;
+}
+
+function csvCell(value) {
+  const text = String(value ?? "");
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function downloadText(filename, content, type) {
+  downloadBlob(filename, new Blob([content], { type }));
+}
+
+function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function makeId(prefix) {
   if (crypto.randomUUID) return `${prefix}-${crypto.randomUUID()}`;
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function colorFromText(text) {
-  const seed = [...String(text)].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  return defaultColors[seed % defaultColors.length];
+  let hash = 0;
+  [...String(text)].forEach((char) => {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  });
+  const hue = hash % 360;
+  return hslToHex(hue, 48, 45);
+}
+
+function hslToHex(h, s, l) {
+  s /= 100;
+  l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return `#${[f(0), f(8), f(4)].map((value) => Math.round(255 * value).toString(16).padStart(2, "0")).join("")}`;
 }
 
 function isColor(value) {
@@ -503,7 +977,7 @@ function escapeHtml(value) {
 }
 
 function escapeAttr(value) {
-  return escapeHtml(isColor(value) ? value : "#d7ddd8");
+  return escapeHtml(value || "");
 }
 
 document.querySelector("#drawSelectedBtn").addEventListener("click", drawSelectedDays);
@@ -518,6 +992,17 @@ document.querySelector("#selectWorkdaysBtn").addEventListener("click", () => {
   saveState();
   render();
 });
+document.querySelector("#exportMealsBtn").addEventListener("click", exportMeals);
+document.querySelector("#importMealsBtn").addEventListener("click", () => importMealsInput.click());
+document.querySelector("#autoColorBtn").addEventListener("click", autoAssignColors);
+document.querySelector("#mealAutoColorBtn").addEventListener("click", () => {
+  mealColorInput.value = colorFromText(mealNameInput.value || DEFAULT_TAG_NAME);
+});
+document.querySelector("#exportImageBtn").addEventListener("click", exportPlanImage);
+document.querySelector("#exportTableBtn").addEventListener("click", exportPlanCsv);
+document.querySelector("#exportPlanBtn").addEventListener("click", exportPlanJson);
+document.querySelector("#importPlanBtn").addEventListener("click", () => importPlanInput.click());
+document.querySelector("#addTagBtn").addEventListener("click", addTag);
 
 drawDayPicker.addEventListener("change", (event) => {
   const input = event.target.closest("input[type='checkbox']");
@@ -547,15 +1032,34 @@ weekGrid.addEventListener("click", (event) => {
 
 mealForm.addEventListener("submit", saveMeal);
 cancelEditBtn.addEventListener("click", resetMealForm);
-document.querySelector("#exportMealsBtn").addEventListener("click", exportMeals);
-document.querySelector("#importMealsBtn").addEventListener("click", () => importMealsInput.click());
 importMealsInput.addEventListener("change", () => importMeals(importMealsInput.files[0]));
+importPlanInput.addEventListener("change", () => importPlan(importPlanInput.files[0]));
+tagNameInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") addTag();
+});
+tagLimitInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") addTag();
+});
 
 mealPool.addEventListener("click", (event) => {
+  const copyButton = event.target.closest(".copy-meal");
   const editButton = event.target.closest(".edit-meal");
   const deleteButton = event.target.closest(".delete-meal");
+  if (copyButton) copyMeal(copyButton.dataset.id);
   if (editButton) editMeal(editButton.dataset.id);
   if (deleteButton) deleteMeal(deleteButton.dataset.id);
+});
+
+tagList.addEventListener("change", (event) => {
+  const input = event.target.closest(".tag-limit-input");
+  if (!input) return;
+  updateTagLimit(input.dataset.name, input.value);
+});
+
+tagList.addEventListener("click", (event) => {
+  const button = event.target.closest(".delete-tag");
+  if (!button) return;
+  deleteTag(button.dataset.name);
 });
 
 resetMealForm();

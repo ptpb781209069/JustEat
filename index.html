@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>干饭机器</title>
     <link rel="stylesheet" href="./styles.css" />
-    <script defer src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script defer src="./vendor/lucide.min.js"></script>
     <script defer src="./app.js"></script>
   </head>
   <body>
@@ -20,9 +20,22 @@
             <i data-lucide="sparkles"></i>
             <span>抽取已选</span>
           </button>
+          <button class="icon-button subtle" id="exportImageBtn" type="button" title="导出图片">
+            <i data-lucide="image-down"></i>
+          </button>
+          <button class="icon-button subtle" id="exportTableBtn" type="button" title="导出结果表格">
+            <i data-lucide="table"></i>
+          </button>
+          <button class="icon-button subtle" id="exportPlanBtn" type="button" title="导出完整结果">
+            <i data-lucide="file-json"></i>
+          </button>
+          <button class="icon-button subtle" id="importPlanBtn" type="button" title="导入结果">
+            <i data-lucide="file-up"></i>
+          </button>
           <button class="icon-button subtle" id="clearPlanBtn" type="button" title="清空餐表">
             <i data-lucide="trash-2"></i>
           </button>
+          <input id="importPlanInput" type="file" accept=".json,.csv,.txt,application/json,text/csv,text/plain" hidden />
         </div>
       </header>
 
@@ -68,6 +81,9 @@
                 <button class="icon-button subtle" id="importMealsBtn" type="button" title="导入候选池">
                   <i data-lucide="upload"></i>
                 </button>
+                <button class="icon-button subtle" id="autoColorBtn" type="button" title="按名称自动分配颜色">
+                  <i data-lucide="palette"></i>
+                </button>
                 <input id="importMealsInput" type="file" accept="application/json,.json" hidden />
               </div>
             </div>
@@ -77,7 +93,16 @@
               <div class="add-row">
                 <input id="mealNameInput" type="text" placeholder="比如：番茄牛腩饭" autocomplete="off" />
                 <input id="mealColorInput" type="color" value="#2f8e7d" title="卡片颜色" />
+                <button class="icon-button subtle" id="mealAutoColorBtn" type="button" title="按候选名取色">
+                  <i data-lucide="pipette"></i>
+                </button>
               </div>
+              <label class="field full-field">
+                <span>标签</span>
+                <input id="mealTagsInput" type="text" placeholder="普通干饭, 外卖, 想吃" autocomplete="off" />
+              </label>
+              <div class="hint-line">留空时自动使用“普通干饭”。多个标签用逗号分隔。</div>
+              <div class="slot-row-label">适用餐段</div>
               <div class="slot-picker" aria-label="候选适用餐段">
                 <label class="toggle compact">
                   <input name="mealSlot" value="breakfast" type="checkbox" />
@@ -102,6 +127,24 @@
             </form>
 
             <div class="meal-pool" id="mealPool"></div>
+          </section>
+
+          <section class="tool-block">
+            <div class="section-head tight">
+              <div>
+                <p class="eyebrow">Tags</p>
+                <h2>标签次数</h2>
+              </div>
+              <button class="icon-button subtle" id="addTagBtn" type="button" title="添加标签">
+                <i data-lucide="tag"></i>
+              </button>
+            </div>
+            <div class="tag-form">
+              <input id="tagNameInput" type="text" placeholder="比如：外卖" autocomplete="off" />
+              <input id="tagLimitInput" type="number" min="0" inputmode="numeric" placeholder="不限" title="本次结果最多出现次数" />
+            </div>
+            <div class="hint-line">次数为空表示不限制；限制会在抽取时按当前餐表累计。</div>
+            <div class="tag-list" id="tagList"></div>
           </section>
         </aside>
       </section>

@@ -1,6 +1,13 @@
 {
-  "version": 2,
+  "version": 3,
   "exportedAt": "2026-05-17T15:58:47.097Z",
+  "migratedAt": "2026-05-23T10:08:55.116Z",
+  "tags": [
+    {
+      "name": "普通干饭",
+      "limit": null
+    }
+  ],
   "meals": [
     {
       "id": "meal-ae52a4fc-0a46-44c2-9c31-f84cbbeaf8ff",
@@ -8,7 +15,10 @@
       "slots": [
         "dinner"
       ],
-      "color": "#596bb3"
+      "color": "#596bb3",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-0e2642b1-c5fa-491e-88f8-912e86fd45a3",
@@ -16,7 +26,10 @@
       "slots": [
         "dinner"
       ],
-      "color": "#e78a3c"
+      "color": "#e78a3c",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-022282e0-6b07-495d-8982-714d347c5915",
@@ -24,7 +37,10 @@
       "slots": [
         "dinner"
       ],
-      "color": "#8f68b8"
+      "color": "#8f68b8",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-1fb829f7-7aee-45fb-8bb8-215b7e4d0753",
@@ -32,7 +48,10 @@
       "slots": [
         "dinner"
       ],
-      "color": "#8f68b8"
+      "color": "#8f68b8",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-42e755c0-09f7-478c-84f3-9275cc50cea8",
@@ -40,7 +59,10 @@
       "slots": [
         "dinner"
       ],
-      "color": "#6f8f3d"
+      "color": "#6f8f3d",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-0668adbf-8541-4f28-95fb-5605dbaac544",
@@ -49,7 +71,10 @@
         "lunch",
         "dinner"
       ],
-      "color": "#bc5a6f"
+      "color": "#bc5a6f",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-a0e1dbd0-eef2-4a4d-8710-3439f70b975b",
@@ -58,7 +83,10 @@
         "lunch",
         "dinner"
       ],
-      "color": "#008a60"
+      "color": "#008a60",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-c9133e1a-2bf6-4414-b8b1-f51f595498d8",
@@ -66,7 +94,10 @@
       "slots": [
         "lunch"
       ],
-      "color": "#00e6bb"
+      "color": "#00e6bb",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-11e49414-917d-449b-9c4a-6f99108ab420",
@@ -74,7 +105,10 @@
       "slots": [
         "lunch"
       ],
-      "color": "#00e6bb"
+      "color": "#00e6bb",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-fce36700-a3a2-4c2b-8257-f57316e92926",
@@ -83,7 +117,10 @@
         "lunch",
         "dinner"
       ],
-      "color": "#0033ff"
+      "color": "#0033ff",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-89a544b8-6680-49e9-874a-2e2ca5a3b15c",
@@ -91,7 +128,10 @@
       "slots": [
         "lunch"
       ],
-      "color": "#0033ff"
+      "color": "#0033ff",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-ff0e89cd-d864-450d-a3da-e7ae340a1f27",
@@ -99,7 +139,10 @@
       "slots": [
         "lunch"
       ],
-      "color": "#0033ff"
+      "color": "#0033ff",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-76a089f7-8e51-4c49-9a4b-0ca1636599b4",
@@ -107,7 +150,10 @@
       "slots": [
         "dinner"
       ],
-      "color": "#ff0000"
+      "color": "#ff0000",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-8275bb77-b2b1-4850-8638-b09a0e3a25c9",
@@ -116,7 +162,10 @@
         "lunch",
         "dinner"
       ],
-      "color": "#ff0000"
+      "color": "#ff0000",
+      "tags": [
+        "普通干饭"
+      ]
     },
     {
       "id": "meal-3b0b4b8a-6d02-48f3-9498-2dfce01b1c86",
@@ -125,7 +174,10 @@
         "lunch",
         "dinner"
       ],
-      "color": "#ff0000"
+      "color": "#ff0000",
+      "tags": [
+        "普通干饭"
+      ]
     }
   ]
 }
