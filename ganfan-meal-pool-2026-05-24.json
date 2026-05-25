@@ -1,0 +1,190 @@
+{
+  "version": 3,
+  "exportedAt": "2026-05-24T00:59:14.612Z",
+  "tags": [
+    {
+      "name": "普通干饭",
+      "limit": null
+    },
+    {
+      "name": "罪恶的饮食",
+      "limit": 2
+    },
+    {
+      "name": "外出干饭",
+      "limit": null
+    }
+  ],
+  "meals": [
+    {
+      "id": "meal-ae52a4fc-0a46-44c2-9c31-f84cbbeaf8ff",
+      "name": "长泰/汇智觅食",
+      "slots": [
+        "dinner"
+      ],
+      "color": "#aa5f3c",
+      "tags": [
+        "外出干饭"
+      ]
+    },
+    {
+      "id": "meal-0e2642b1-c5fa-491e-88f8-912e86fd45a3",
+      "name": "小黑街",
+      "slots": [
+        "dinner"
+      ],
+      "color": "#803caa",
+      "tags": [
+        "外出干饭"
+      ]
+    },
+    {
+      "id": "meal-022282e0-6b07-495d-8982-714d347c5915",
+      "name": "地铁站小摊",
+      "slots": [
+        "dinner"
+      ],
+      "color": "#aa503c",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-1fb829f7-7aee-45fb-8bb8-215b7e4d0753",
+      "name": "地铁站小摊",
+      "slots": [
+        "dinner"
+      ],
+      "color": "#aa503c",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-42e755c0-09f7-478c-84f3-9275cc50cea8",
+      "name": "小罐米线/小陈牛肉面",
+      "slots": [
+        "dinner"
+      ],
+      "color": "#aa3c66",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-0668adbf-8541-4f28-95fb-5605dbaac544",
+      "name": "创业公寓小店",
+      "slots": [
+        "lunch",
+        "dinner"
+      ],
+      "color": "#5daa3c",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-a0e1dbd0-eef2-4a4d-8710-3439f70b975b",
+      "name": "安徽菜饭",
+      "slots": [
+        "lunch",
+        "dinner"
+      ],
+      "color": "#aa8e3c",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-c9133e1a-2bf6-4414-b8b1-f51f595498d8",
+      "name": "碧波馄饨",
+      "slots": [
+        "lunch"
+      ],
+      "color": "#3caa66",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-11e49414-917d-449b-9c4a-6f99108ab420",
+      "name": "碧波馄饨",
+      "slots": [
+        "lunch"
+      ],
+      "color": "#3caa66",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-fce36700-a3a2-4c2b-8257-f57316e92926",
+      "name": "大米先生",
+      "slots": [
+        "lunch",
+        "dinner"
+      ],
+      "color": "#3c80aa",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-89a544b8-6680-49e9-874a-2e2ca5a3b15c",
+      "name": "大米先生",
+      "slots": [
+        "lunch"
+      ],
+      "color": "#3c80aa",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-ff0e89cd-d864-450d-a3da-e7ae340a1f27",
+      "name": "大米先生",
+      "slots": [
+        "lunch"
+      ],
+      "color": "#3c80aa",
+      "tags": [
+        "普通干饭"
+      ]
+    },
+    {
+      "id": "meal-76a089f7-8e51-4c49-9a4b-0ca1636599b4",
+      "name": "肯德基",
+      "slots": [
+        "dinner"
+      ],
+      "color": "#aa5d3c",
+      "tags": [
+        "罪恶的饮食"
+      ]
+    },
+    {
+      "id": "meal-8275bb77-b2b1-4850-8638-b09a0e3a25c9",
+      "name": "麦当劳",
+      "slots": [
+        "lunch",
+        "dinner"
+      ],
+      "color": "#aa3c3f",
+      "tags": [
+        "罪恶的饮食"
+      ]
+    },
+    {
+      "id": "meal-3b0b4b8a-6d02-48f3-9498-2dfce01b1c86",
+      "name": "麦当劳",
+      "slots": [
+        "lunch",
+        "dinner"
+      ],
+      "color": "#aa3c3f",
+      "tags": [
+        "罪恶的饮食"
+      ]
+    }
+  ]
+}
